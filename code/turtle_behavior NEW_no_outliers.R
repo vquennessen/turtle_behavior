@@ -45,8 +45,6 @@ for (t in 1:length(turtle_IDs)) {
     filter(behavior$Start > GPS_turtle$date[1] & 
              behavior$End < GPS_turtle$date[nrow(GPS_turtle)])
   
-  
-  
   # extract only dives from behavior
   dives <- behavior %>% filter(What == 'Dive')
   
@@ -59,7 +57,6 @@ for (t in 1:length(turtle_IDs)) {
   
   # create total time interval column in surfaces dataframe, in seconds
   surfaces$Time_sec <- as.numeric(surfaces$End - surfaces$Start)
-  
   
   #remove outliers from surface
   cutoff <- quantile(surfaces$Time_sec, 0.99)
@@ -212,56 +209,6 @@ for (t in 1:length(turtle_IDs)) {
       
       ##########################################################################
       
-      ##### error handling #####################################################
-      # ##### dives and intervals split between 2 intervals evenly ###############
-      # 
-      # ##### dives
-      # 
-      # # duplicated dives
-      # dup_dives <- anyDuplicated(unlist(GPS_turtle$Dives[1:(gps - 1)]))
-      # 
-      # # if there are any duplicated dives: 
-      # if (dup_dives > 0) {
-      #   
-      #   # for each duplicated dive
-      #   for (dd in dup_dives) {
-      #     
-      #     # identify the GPS intervals that contain the duplicates
-      #     intervals <- GPS_turtle$Dives[sapply(GPS_turtle$Dives, 
-      #                                          `%in%`, x = dd)]
-      #     
-      #     # remove dive from not minimum value
-      #     shortcut <- GPS_turtle$Dives[max(intervals)]  # set dives shortcut
-      #     GPS_turtle$Dives[max(intervals)] <- shortcut[shortcut != dd]
-      #     
-      #   }
-      #   
-      # }
-      # 
-      # ##### surfaces
-      # 
-      # # duplicated surfaces
-      # dup_surfaces <- anyDuplicated(unlist(GPS_turtle$Surfaces[1:(gps - 1)]))
-      # 
-      # # if there are any duplicated surfaces: 
-      # if (dup_surfaces > 0) {
-      #   
-      #   # for each duplicated surface
-      #   for (dd in dup_surfaces) {
-      #     
-      #     # identify the GPS intervals that contain the duplicates
-      #     intervals <- GPS_turtle$Surfaces[sapply(GPS_turtle$Surfaces, 
-      #                                             `%in%`, x = dd)]
-      #     
-      #     # remove dive from not minimum value
-      #     # set surfaces shortcut
-      #     shortcut <- GPS_turtle$Surfaces[max(intervals)]  
-      #     GPS_turtle$Surfaces[max(intervals)] <- shortcut[shortcut != dd]
-      #     
-      #   }
-      #   
-      # }
-      # 
       ##### dives and surfaces split over > 2 intervals ########################
       
       ##### dives
@@ -284,46 +231,51 @@ for (t in 1:length(turtle_IDs)) {
           end_int <- max(which(GPS_turtle$date < dives$End[missing_dives[md]]))
           intervals <- start_int:end_int
           
-          # initialize seconds_overlap vector
-          seconds_overlap <- rep(NA, length(intervals))
-          
-          # for each interval
-          for (i in 1:length(intervals)) {
+          if (length(intervals) > 1) {
             
-            # time of dives in interval - in seconds
-            GPS_interval <- interval(GPS_turtle$date[intervals[i]], 
-                                     GPS_turtle$date[intervals[i] + 1])
+            # initialize seconds_overlap vector
+            seconds_overlap <- rep(NA, length(intervals))
             
-            seconds_overlap[i] <- lubridate::second(
-              as.period(intersect(GPS_interval, dive_interval), "seconds"))
-          }
-          
-          # minimum interval with maximum overlap
-          max_overlap <- max(seconds_overlap)
-          max_interval <- intervals[min(which(seconds_overlap == max_overlap))]
-          
-          # assign dive to that interval
-          
-          # if there are already other dives in that interval
-          if (is.numeric(GPS_turtle$Dives[max_interval])) {
-            GPS_turtle$Dives[max_interval] <- list(unlist(GPS_turtle$Dives[max_interval]),
-                                                   missing_dives[md])
-            GPS_turtle$Number_dives[max_interval] <- GPS_turtle$Number_dives[max_interval] + 1
-            GPS_turtle$Total_dive_time_sec[max_interval] <- 
-              GPS_turtle$Total_dive_time_sec[max_interval] + max_overlap
-            GPS_turtle$Avg_dive_time_sec[max_interval] <- 
-              mean(c(unlist(GPS_turtle$Avg_dive_time_sec[max_interval]), max_overlap))
-            GPS_turtle$Avg_dive_depth[max_interval] <- 
-              mean(c(unlist(GPS_turtle$Avg_dive_depth[max_interval]), 
-                     dives$Depth[missing_dives[md]]))            
+            # for each interval
+            for (i in 1:length(intervals)) {
+              
+              # time of dives in interval - in seconds
+              GPS_interval <- interval(GPS_turtle$date[intervals[i]], 
+                                       GPS_turtle$date[intervals[i] + 1])
+              
+              seconds_overlap[i] <- lubridate::second(
+                as.period(intersect(GPS_interval, dive_interval), "seconds"))
+            }
             
-            # if there were no other dives in that interval
-          } else {
-            GPS_turtle$Dives[max_interval] <- list(missing_dives[md])
-            GPS_turtle$Number_dives[max_interval] <- 1
-            GPS_turtle$Total_dive_time_sec[max_interval] <- max_overlap
-            GPS_turtle$Avg_dive_time_sec[max_interval] <- max_overlap
-            GPS_turtle$Avg_dive_depth[max_interval] <- dives$Depth[missing_dives[md]]
+            # minimum interval with maximum overlap
+            max_overlap <- max(seconds_overlap)
+            max_interval <- intervals[min(which(seconds_overlap == max_overlap))]
+            
+            # assign dive to that interval
+            
+            # if there are already other dives in that interval
+            if (is.numeric(GPS_turtle$Dives[max_interval])) {
+              GPS_turtle$Dives[max_interval] <- list(unlist(GPS_turtle$Dives[max_interval]),
+                                                     missing_dives[md])
+              GPS_turtle$Number_dives[max_interval] <- GPS_turtle$Number_dives[max_interval] + 1
+              GPS_turtle$Total_dive_time_sec[max_interval] <- 
+                GPS_turtle$Total_dive_time_sec[max_interval] + max_overlap
+              GPS_turtle$Avg_dive_time_sec[max_interval] <- 
+                mean(c(unlist(GPS_turtle$Avg_dive_time_sec[max_interval]), max_overlap))
+              GPS_turtle$Avg_dive_depth[max_interval] <- 
+                mean(c(unlist(GPS_turtle$Avg_dive_depth[max_interval]), 
+                       dives$Depth[missing_dives[md]]))            
+              
+              # if there were no other dives in that interval
+              
+            } else {
+              GPS_turtle$Dives[max_interval] <- list(missing_dives[md])
+              GPS_turtle$Number_dives[max_interval] <- 1
+              GPS_turtle$Total_dive_time_sec[max_interval] <- max_overlap
+              GPS_turtle$Avg_dive_time_sec[max_interval] <- max_overlap
+              GPS_turtle$Avg_dive_depth[max_interval] <- dives$Depth[missing_dives[md]]
+              
+            }
             
           }
           
@@ -372,30 +324,23 @@ for (t in 1:length(turtle_IDs)) {
             max_overlap <- max(seconds_overlap)
             max_interval <- intervals[min(which(seconds_overlap == max_overlap))]
             
-          } else if (length(intervals == 1)) {
-            
-            max_interval <- intervals
-            
-          }
-          
-          # assign surface to that interval
-          
-          # if there are already other surfaces in that interval
-          if (is.numeric(GPS_turtle$Surfaces[max_interval])) {
-            GPS_turtle$Surfaces[max_interval] <- list(unlist(GPS_turtle$Surfaces[max_interval]),
-                                                      missing_surfaces[ms])
-            GPS_turtle$Number_surfaces[max_interval] <- GPS_turtle$Number_surfaces[max_interval] + 1
-            GPS_turtle$Total_surface_time_sec[max_interval] <- 
-              GPS_turtle$Total_surface_time_sec[max_interval] + max_overlap
-            GPS_turtle$Avg_surface_time_sec[max_interval] <- 
-              mean(c(unlist(GPS_turtle$Avg_surface_time_sec[max_interval]), max_overlap))
-            
-            # if there were no other surfaces in that interval
-          } else {
-            GPS_turtle$Surfaces[max_interval] <- list(missing_surfaces[ms])
-            GPS_turtle$Number_surfaces[max_interval] <- 1
-            GPS_turtle$Total_surface_time_sec <- max_overlap
-            GPS_turtle$Avg_surface_time_sec <- max_overlap
+            if (is.numeric(GPS_turtle$Surfaces[max_interval])) {
+              GPS_turtle$Surfaces[max_interval] <- list(unlist(GPS_turtle$Surfaces[max_interval]),
+                                                        missing_surfaces[ms])
+              GPS_turtle$Number_surfaces[max_interval] <- GPS_turtle$Number_surfaces[max_interval] + 1
+              GPS_turtle$Total_surface_time_sec[max_interval] <- 
+                GPS_turtle$Total_surface_time_sec[max_interval] + max_overlap
+              GPS_turtle$Avg_surface_time_sec[max_interval] <- 
+                mean(c(unlist(GPS_turtle$Avg_surface_time_sec[max_interval]), max_overlap))
+              
+              # if there were no other surfaces in that interval
+            } else {
+              GPS_turtle$Surfaces[max_interval] <- list(missing_surfaces[ms])
+              GPS_turtle$Number_surfaces[max_interval] <- 1
+              GPS_turtle$Total_surface_time_sec <- max_overlap
+              GPS_turtle$Avg_surface_time_sec <- max_overlap
+              
+            }
             
           }
           
@@ -498,4 +443,4 @@ new_GPS$Surfaces <- paste(new_GPS$Surfaces)
 # write new GPS dataframe to new .csv file
 write.csv(new_GPS, 
           file = paste('~/Projects/turtle_behavior/data/', 
-          'NEW_GPS_NEW_no_outliers_6_hour2.csv', sep = ''))
+                       'NEW_GPS_NEW_no_outliers_6_hour2.csv', sep = ''))
