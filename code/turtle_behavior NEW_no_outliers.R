@@ -1,13 +1,13 @@
 # turtle dive behavior
 # Vic Quennessen
-# last updated: September 12, 2022
+# last updated: September 14, 2022
 
 # load libraries
 library(dplyr)
 library(lubridate)
 
 # list all turtle IDs to be analyzed
-turtle_IDs <- c(41589, 146294, 146295, 146296, 146298, 146299)
+turtle_IDs <- c(146294, 146295, 146296, 146298)
 
 # import data: make sure to change this so you import the data from your own 
 # working directory
@@ -30,9 +30,9 @@ for (t in 1:length(turtle_IDs)) {
   #                            '-Behavior.csv', sep = ''), header = TRUE)
   
   # import behavior data for turtle
-  behavior <- read.csv(paste('~/Dropbox/Armando PhD/Chapter 3/Second_Run/Third_run/Dive_variables_NEW/NEW_6_HOUR-SSM/', turtle_IDs[t], 
+  behavior <- read.csv(paste('~/Projects/turtle_behavior/data/', turtle_IDs[t], 
                              '-Behavior.csv', sep = ''), header = TRUE)
-
+  
   
   # make date objects
   behavior$Start <- as.POSIXlt(behavior$Start, format = "%H:%M:%S %d-%b-%Y")
@@ -44,7 +44,7 @@ for (t in 1:length(turtle_IDs)) {
   behavior <- behavior %>%
     filter(behavior$Start > GPS_turtle$date[1] & 
              behavior$End < GPS_turtle$date[nrow(GPS_turtle)])
-
+  
   
   
   # extract only dives from behavior
@@ -351,23 +351,32 @@ for (t in 1:length(turtle_IDs)) {
           end_int <- max(which(GPS_turtle$date < surfaces$End[missing_surfaces[ms]]))
           intervals <- start_int:end_int
           
-          # initialize seconds_overlap vector
-          seconds_overlap <- rep(NA, length(intervals))
-          
-          # for each interval
-          for (i in 1:length(intervals)) {
+          if (length(intervals) > 1) {
             
-            # time of surfaces in interval - in seconds
-            GPS_interval <- interval(GPS_turtle$date[intervals[i]], 
-                                     GPS_turtle$date[intervals[i] + 1])
+            # initialize seconds_overlap vector
+            seconds_overlap <- rep(NA, length(intervals))
             
-            seconds_overlap[i] <- lubridate::second(
-              as.period(intersect(GPS_interval, surface_interval), "seconds"))
+            # for each interval
+            for (i in 1:length(intervals)) {
+              
+              # time of surfaces in interval - in seconds
+              GPS_interval <- interval(GPS_turtle$date[intervals[i]], 
+                                       GPS_turtle$date[intervals[i] + 1])
+              
+              seconds_overlap[i] <- lubridate::second(
+                as.period(intersect(GPS_interval, surface_interval), "seconds"))
+              
+            }
+            
+            # minimum interval with maximum overlap
+            max_overlap <- max(seconds_overlap)
+            max_interval <- intervals[min(which(seconds_overlap == max_overlap))]
+            
+          } else if (length(intervals == 1)) {
+            
+            max_interval <- intervals
+            
           }
-          
-          # minimum interval with maximum overlap
-          max_overlap <- max(seconds_overlap)
-          max_interval <- intervals[min(which(seconds_overlap == max_overlap))]
           
           # assign surface to that interval
           
@@ -480,5 +489,13 @@ for (t in 1:length(turtle_IDs)) {
 new_GPS$Dives <- paste(new_GPS$Dives)
 new_GPS$Surfaces <- paste(new_GPS$Surfaces)
 
+# # write new GPS dataframe to new .csv file
+# write.csv(new_GPS, 
+#           file = paste('~/Dropbox/Armando PhD/Chapter 3/Second_Run/Third_run/', 
+# 'Dive_variables_NEW/NEW_6_HOUR-SSM/NEW_GPS_NEW_no_outliers_6_hour2.csv', 
+# sep = ''))
+
 # write new GPS dataframe to new .csv file
-write.csv(new_GPS, file = '~/Dropbox/Armando PhD/Chapter 3/Second_Run/Third_run/Dive_variables_NEW/NEW_6_HOUR-SSM/NEW_GPS_NEW_no_outliers_6_hour2.csv')
+write.csv(new_GPS, 
+          file = paste('~/Projects/turtle_behavior/data/', 
+          'NEW_GPS_NEW_no_outliers_6_hour2.csv', sep = ''))
