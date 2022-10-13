@@ -53,4 +53,6 @@ ggplot(data = nests2,
   ylab('Turtle ID') +
   xlab('Day of the Year') +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  theme(text = element_text(size=15)) +
+  theme(legend.text = element_text(size = 10)) +
   facet_grid(cols = vars(season), scales = 'free')
